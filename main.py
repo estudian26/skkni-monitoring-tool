@@ -1,6 +1,5 @@
 import os, time, requests, pandas as pd, gspread, sys, logging
 from gspread.utils import rowcol_to_a1
-from IPython.display import display
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -77,6 +76,20 @@ for _, row in df_pairs.iterrows():
 
 df_status = pd.DataFrame(status_rows)
 log.info("Status sample:\n%s", df_status.head().to_string(index=False))
+
+# ---- Alert file if any Dicabut ----
+dicabut_df = df_status[df_status["Status"] == "Dicabut"].copy()
+if not dicabut_df.empty:
+    os.makedirs("alerts", exist_ok=True)
+    with open("alerts/dicabut_summary.txt", "w", encoding="utf-8") as f:
+        f.write("ALERT: SKKNI dengan status 'Dicabut' terdeteksi\n")
+        f.write(f"SHEET_KEY: {SHEET_KEY}\n")
+        f.write(f"INPUT_GID: {INPUT_GID}  OUTPUT_GID: {OUTPUT_GID}\n\n")
+        for _, r in dicabut_df.iterrows():
+            f.write(f"- Nomor {int(r.Nomor)} Tahun {int(r.Tahun)} → Dicabut\n")
+    log.warning("Dicabut found. Wrote alerts/dicabut_summary.txt")
+else:
+    log.info("No 'Dicabut' found.")
 
 # ---------- Map back ----------
 status_map = {(int(r.Nomor), int(r.Tahun)): r.Status for _, r in df_status.iterrows()}
