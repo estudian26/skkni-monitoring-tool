@@ -51,7 +51,7 @@ jobs:
         with:
           server_address: smtp-relay.brevo.com
           server_port: 587
-          secure: true
+          secure: false
           username: ${{ secrets.MAIL_USERNAME }}   # e.g., 9487f3001@smtp-brevo.com
           password: ${{ secrets.MAIL_PASSWORD }}   # your Brevo API key
           subject: "SKKNI Validator Alert: DICABUT ditemukan"
