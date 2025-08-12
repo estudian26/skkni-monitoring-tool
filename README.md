@@ -1,0 +1,2 @@
+# SKKNI Validator
+Placeholder README
