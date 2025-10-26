@@ -1,4 +1,4 @@
-# 🧩 SKKNI Validator (GitHub Actions version)
+# 🧩 SKKNI Monitoring Tool (GitHub Actions version)
 
 This project helps **Lembaga Sertifikasi Profesi (LSP)** automatically monitor the **SKKNI (Standar Kompetensi Kerja Nasional Indonesia)** they use.  
 
