@@ -28,7 +28,7 @@ with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
     tf.write(GSHEETS_JSON)
     CREDS_FILE = tf.name
 
-# -------- Core logic (same as your notebook, trimmed prints) --------
+# -------- Core logic --------
 SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "Mozilla/5.0 (SKKNI-Checker)"})
 KEYWORDS_ORDERED = [
@@ -42,7 +42,11 @@ def serp_search(query: str, api_key: str, retries: int = 3, timeout: int = 30):
     last_err = None
     for i in range(retries):
         try:
-            resp = SESSION.get(url, params={"q": query, "api_key": api_key, "hl": "id", "num": 10}, timeout=timeout)
+            resp = SESSION.get(
+                url,
+                params={"q": query, "api_key": api_key, "hl": "id", "num": 10},
+                timeout=timeout,
+            )
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -143,7 +147,8 @@ def main():
         time.sleep(1.2)
     df_status = pd.DataFrame(status_rows)
 
-    status_map = {(int(r.Nomor), int(r.Tahun)): r.Status for _, r in df_status.iterrows() if pd.notna(r.Nomor) and pd.notna(r.Tahun)}
+    status_map = {(int(r.Nomor), int(r.Tahun)): r.Status for _, r in df_status.iterrows()
+                  if pd.notna(r.Nomor) and pd.notna(r.Tahun)}
 
     def _map_status(row):
         try:
@@ -168,6 +173,27 @@ def main():
     ws_out.update(f"{start}:{end}", [[v] for v in df_raw["Status"].tolist()])
     print(f"✓ Wrote 'Status' to column index {status_idx}")
 
+    # === Highlight rows with Status == "Dicabut" (Nomor, Tahun, Status columns) ===
+    fmt = {"backgroundColor": {"red": 0.95, "green": 0.80, "blue": 0.80}}  # soft red
+    col_nomor_idx  = df_raw.columns.get_loc("Nomor SKKNI") + 1  # 1-based
+    col_tahun_idx  = df_raw.columns.get_loc("Tahun SKKNI") + 1
+    col_status_idx = col_tahun_idx + 1
+
+    mask_dicabut = df_raw["Status"].astype(str).str.upper() == "DICABUT"
+    highlighted = []
+    for i in df_raw.index[mask_dicabut]:
+        rownum = i + 2  # +1 header, +1 to convert to 1-based row index
+        for c in (col_nomor_idx, col_tahun_idx, col_status_idx):
+            a1 = rowcol_to_a1(rownum, c)
+            ws_out.format(a1, fmt)
+            highlighted.append(a1)
+
+    if highlighted:
+        print("✓ Highlighted cells:", ", ".join(highlighted))
+    else:
+        print("No Dicabut rows to highlight.")
+
+    # Email alert
     df_alert_any = build_dicabut_alert(df_raw)
     send_weekly_alert(df_alert_any)
 
