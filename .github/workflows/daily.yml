@@ -1,14 +1,15 @@
-name: daily-skkni
+name: Check SKKNI
+
 on:
   schedule:
-    - cron: "5 0 * * *"   # 07:05 WIB (UTC+7) == 00:05 UTC
-  workflow_dispatch:
+    - cron: "0 19 * * *"   # 02:00 WIB daily (UTC-7 vs WIB+7)
+  workflow_dispatch: {}     # allow manual run
 
 jobs:
-  run:
+  run-checker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -18,50 +19,35 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Write Google creds from secret
-        run: |
-          echo "$GSHEETS_JSON" > creds.json
+      - name: Run SKKNI checker
         env:
-          GSHEETS_JSON: ${{ secrets.GSHEETS_JSON }}
-
-      - name: Run script
-        env:
-          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          # your IDs
           INPUT_GID: "372282629"
           OUTPUT_GID: "372282629"
-          SHEET_KEY: "1EJqpHxeZz1CDt9qbZOXEW6Bm8MGVU1KQjiTeQiGh3GU"
-        run: |
-          python main.py
+          SHEET_KEY: ${{ secrets.SHEET_KEY }}
 
-      # --- Email alert via Brevo if any "Dicabut" was found ---
-      - name: Read alert text (if any)
-        id: alert_txt
-        if: hashFiles('alerts/dicabut_summary.txt') != ''
-        run: |
-          echo "text<<EOF" >> $GITHUB_OUTPUT
-          cat alerts/dicabut_summary.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # secrets
+          GSHEETS_JSON: ${{ secrets.GSHEETS_JSON }}          # paste full JSON as one secret
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
 
-      - name: Send email if Dicabut found
-        if: hashFiles('alerts/dicabut_summary.txt') != ''
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp-relay.brevo.com
-          server_port: 587
-          secure: false
-          username: ${{ secrets.MAIL_USERNAME }}   # e.g., 9487f3001@smtp-brevo.com
-          password: ${{ secrets.MAIL_PASSWORD }}   # your Brevo API key
-          subject: "SKKNI Validator Alert: DICABUT ditemukan"
-          from: "SKKNI Validator <${{ secrets.MAIL_USERNAME }}>"
-          to: ${{ secrets.MAIL_TO }}               # comma-separated list
-          body: ${{ steps.alert_txt.outputs.text }}
+          # optional email notif
+          SMTP_HOST: "smtp.gmail.com"
+          SMTP_PORT: "465"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RECIPIENTS: ${{ secrets.RECIPIENTS }}              # e.g. "a@b.com,c@d.com"
+        run: python main.py
 
-      - name: Upload alert artifact (optional)
-        if: hashFiles('alerts/dicabut_summary.txt') != ''
+      # optional: upload CSV outputs as workflow artifacts
+      - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dicabut-summary
-          path: alerts/dicabut_summary.txt
+          name: skkni-outputs
+          path: |
+            skkni_status_unique.csv
+            skkni_sheet_with_status.csv
+          if-no-files-found: ignore
