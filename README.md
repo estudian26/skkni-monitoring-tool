@@ -1,7 +1,9 @@
 # 🧩 SKKNI Validator (GitHub Actions version)
 
 This project helps **Lembaga Sertifikasi Profesi (LSP)** automatically monitor the **SKKNI (Standar Kompetensi Kerja Nasional Indonesia)** they use.  
+
 It reads a Google Sheet, checks each SKKNI’s status from Kemnaker via SerpAPI, updates the “Status” column, highlights any **“Dicabut”** entries, and can send weekly email notifications.  
+
 Everything runs automatically through **GitHub Actions** — no manual execution needed once set up.
 
 ---
