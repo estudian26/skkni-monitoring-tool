@@ -107,6 +107,21 @@ def send_weekly_alert(df_alert: pd.DataFrame) -> bool:
     print(f"✓ Email sent to: {', '.join(RECIPIENTS)}")
     return True
 
+def _ensure_and_get_col(ws, col_name: str) -> int:
+    """Return 1-based column index for a header name, creating it at the end if missing."""
+    header = ws.row_values(1)
+    if col_name in header:
+        return header.index(col_name) + 1
+    ws.update_cell(1, len(header) + 1, col_name)
+    return len(header) + 1
+
+def _get_col(ws, col_name: str) -> int:
+    """Return 1-based column index for an existing header name, raise if missing."""
+    header = ws.row_values(1)
+    if col_name not in header:
+        raise ValueError(f"Header '{col_name}' not found in the sheet.")
+    return header.index(col_name) + 1
+
 def main():
     gc = gspread.service_account(filename=CREDS_FILE)
     ss = gc.open_by_key(SHEET_KEY)
@@ -162,28 +177,29 @@ def main():
 
     df_raw["Status"] = df_raw.apply(_map_status, axis=1)
 
-    tahun_idx = df_raw.columns.get_loc("Tahun SKKNI") + 1  # 1-based
-    status_idx = tahun_idx + 1
+    # Resolve real column positions from the sheet header, do not assume adjacency
+    status_idx = _ensure_and_get_col(ws_out, "Status")
+    col_nomor_idx  = _get_col(ws_out, "Nomor SKKNI")
+    col_tahun_idx  = _get_col(ws_out, "Tahun SKKNI")
+
+    # Ensure the sheet has enough columns
     current_cols = len(ws_out.row_values(1))
     if status_idx > current_cols:
         ws_out.add_cols(status_idx - current_cols)
 
+    # Write the Status column
     start = rowcol_to_a1(2, status_idx)
     end   = rowcol_to_a1(len(df_raw) + 1, status_idx)
     ws_out.update(f"{start}:{end}", [[v] for v in df_raw["Status"].tolist()])
     print(f"✓ Wrote 'Status' to column index {status_idx}")
 
-    # === Highlight rows with Status == "Dicabut" (Nomor, Tahun, Status columns) ===
+    # Highlight rows with Status == "Dicabut" for Nomor, Tahun, and Status columns
     fmt = {"backgroundColor": {"red": 0.95, "green": 0.80, "blue": 0.80}}  # soft red
-    col_nomor_idx  = df_raw.columns.get_loc("Nomor SKKNI") + 1  # 1-based
-    col_tahun_idx  = df_raw.columns.get_loc("Tahun SKKNI") + 1
-    col_status_idx = col_tahun_idx + 1
-
     mask_dicabut = df_raw["Status"].astype(str).str.upper() == "DICABUT"
     highlighted = []
     for i in df_raw.index[mask_dicabut]:
-        rownum = i + 2  # +1 header, +1 to convert to 1-based row index
-        for c in (col_nomor_idx, col_tahun_idx, col_status_idx):
+        rownum = i + 2  # +1 header, +1 to 1-based
+        for c in (col_nomor_idx, col_tahun_idx, status_idx):
             a1 = rowcol_to_a1(rownum, c)
             ws_out.format(a1, fmt)
             highlighted.append(a1)
