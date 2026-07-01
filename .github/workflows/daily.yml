@@ -44,7 +44,7 @@ jobs:
       # optional: upload CSV outputs as workflow artifacts
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: skkni-outputs
           path: |
