@@ -1,13 +1,26 @@
 name: Keep Alive
 
+# Prevents GitHub from auto-disabling the scheduled "Check SKKNI" workflow.
+# GitHub disables cron workflows after 60 days with no commit activity on the
+# default branch, so this pushes a weekly empty commit to reset that timer.
+
 on:
   schedule:
-    - cron: '0 0 1 * *'  # runs on the 1st of every month
-  workflow_dispatch:       # allows manual trigger too
+    - cron: '0 3 * * 1'  # every Monday 03:00 UTC
+  workflow_dispatch:       # allow manual run
+
+permissions:
+  contents: write          # required to push the keepalive commit
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: gautamkrishnar/keepalive-workflow@v1
+      - uses: actions/checkout@v4
+
+      - name: Push empty keepalive commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive [skip ci]"
+          git push
